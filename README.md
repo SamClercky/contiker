@@ -13,6 +13,11 @@ New and improved contiker script to work with variable workspace directories and
 make install
 ```
 
+To allow X11 to work with Cooja on Linux and Docker, use the following command:
+```bash
+xhost +local:docker
+```
+
 ## Run
 
 ```bash
