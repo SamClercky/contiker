@@ -30,10 +30,12 @@ contiker init -v contiki-ng # In specific folder
 # Start Contiki container
 contiker # Run with contents of $CNG_PATH as mounted dir
 contiker -v . # Run with . as mounted dir
+contiker -e bash # Run specific command
+contiker cooja # Alias for `contiker -e cooja`
 
 # Management of Contiker containers
-contiker sh # Open a shell in already running container
 contiker rm # Remove current container
+contiker up # Check if currently a container is up
 
 # Common fixes
 contiker fix -docker # Add current user the `docker` group
