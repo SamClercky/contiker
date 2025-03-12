@@ -6,7 +6,44 @@ import (
 	"os"
 	"os/exec"
 	"os/user"
+	"path"
+	"runtime"
 )
+
+func execFixXhost() {
+	fmt.Printf("Starting xhost fix\n")
+	cmd := exec.Command("xhost", "+local:docker")
+
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stdout
+
+	errRun := cmd.Run()
+	if errRun != nil {
+		fmt.Printf("[ERROR] Command did end in error: %a\n", errRun)
+	}
+}
+
+func execFixDocker() {
+	fmt.Printf("Starting Docker fix\n")
+	user, err := user.Current()
+	if err != nil {
+		fmt.Printf("[ERROR] Could not get user: %a\n", err)
+		os.Exit(-1)
+	}
+	cmd := exec.Command("sudo", "usermod", "-aG", user.Username, "docker")
+
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stdout
+
+	errRun := cmd.Run()
+	if errRun != nil {
+		fmt.Printf("[ERROR] Command did end in error: %a\n", errRun)
+	}
+
+	fmt.Printf("Now restart your PC/VM to have the changes take effect\n")
+}
 
 func execDocker(volume *string) {
 	displayEnv := os.Getenv("DISPLAY")
@@ -95,35 +132,87 @@ func execRm() {
 	}
 }
 
+func execInit(url string) {
+	if len(url) == 0 {
+		url = "https://github.com/contiki-ng/contiki-ng.git"
+	}
+
+	numCpus := runtime.NumCPU()
+	cmd := exec.Command("git",
+		"clone",
+		"--recurse-submodules",
+		fmt.Sprintf("-j%d", numCpus),
+		url)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	cmd.Stdin = os.Stdin
+
+	errRun := cmd.Run()
+	if errRun != nil {
+		fmt.Printf("[ERROR] Command did end in error: %a\n", errRun)
+	}
+
+	// Print some help information
+	cwd, _ := os.Getwd()
+	fmt.Printf("To make the current directory the permanent Contiki install, add the following line to your .bashrc\n")
+	fmt.Printf("export CNG_PATH=\"%s\"\n\n", path.Join(cwd, url))
+}
+
 func main() {
-	shPtr := flag.Bool("sh", false, "Activate shell")
-	rmPtr := flag.Bool("rm", false, "Remove current docker")
+	shSet := flag.NewFlagSet("sh", flag.ExitOnError)
+	rmSet := flag.NewFlagSet("rm", flag.ExitOnError)
+
+	initSet := flag.NewFlagSet("init", flag.ExitOnError)
+	initUrlPtr := initSet.String("git", "", "Git clone url")
+
+	fixSet := flag.NewFlagSet("fix", flag.ExitOnError)
+	xhostPtr := fixSet.Bool("xhost", false, "Fix xhost (X11 connectivity) issue")
+	dockerPermPtr := fixSet.Bool("docker", false, "Fix Docker permission issue")
+
 	volumePtr := flag.String("v", "", "Volume to be mounted")
-	flag.Parse()
 
-	// flags should be exclusive
-	numFlags := 0
-	if *shPtr {
-		numFlags += 1
-	}
-	if *rmPtr {
-		numFlags += 1
-	}
-	if len(*volumePtr) > 0 {
-		numFlags += 1
-	}
+	for _, v := range os.Args[1:] {
+		if v == "-h" {
+			fmt.Printf("Valid subcommands are: sh, rm, init\n")
 
-	if numFlags > 1 {
-		fmt.Printf("[ERROR] Could only handle one flag at a time\n")
-		flag.PrintDefaults()
-		os.Exit(-1)
+			flag.Usage()
+			shSet.Usage()
+			rmSet.Usage()
+			initSet.Usage()
+			fixSet.Usage()
+
+			return
+		}
 	}
 
-	if *shPtr {
+	// If no arguments
+	if len(os.Args) == 1 {
+		flag.Parse()
+		execDocker(volumePtr)
+	}
+
+	// If at least one argument
+	switch os.Args[1] {
+	case "sh":
+		shSet.Parse(os.Args[2:])
 		execSh()
-	} else if *rmPtr {
+	case "rm":
+		rmSet.Parse(os.Args[2:])
 		execRm()
-	} else {
+	case "init":
+		initSet.Parse(os.Args[2:])
+		execInit(*initUrlPtr)
+	case "fix":
+		fixSet.Parse(os.Args[2:])
+		if *xhostPtr {
+			execFixXhost()
+		}
+		if *dockerPermPtr {
+			execFixDocker()
+		}
+		fmt.Printf("All fixes applied\n")
+	default:
+		flag.Parse()
 		execDocker(volumePtr)
 	}
 }
