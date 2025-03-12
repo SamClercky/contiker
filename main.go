@@ -92,7 +92,7 @@ func execDocker(volume *string) {
 	}
 }
 
-func execSh() {
+func execSh(startCmd string) {
 	user, err := user.Current()
 	var userUid string
 	var userGid string
@@ -106,7 +106,7 @@ func execSh() {
 	}
 
 	cmd := exec.Command("docker",
-		"exec", "--user", fmt.Sprintf("%s:%s", userUid, userGid), "-it", "contiker", "/bin/bash")
+		"exec", "--user", fmt.Sprintf("%s:%s", userUid, userGid), "-it", "contiker", startCmd)
 
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
@@ -161,6 +161,7 @@ func execInit(url string, folder string) {
 
 func main() {
 	shSet := flag.NewFlagSet("sh", flag.ExitOnError)
+	shCoojaPtr := shSet.Bool("cooja", false, "Start Cooja")
 	rmSet := flag.NewFlagSet("rm", flag.ExitOnError)
 
 	initSet := flag.NewFlagSet("init", flag.ExitOnError)
@@ -197,7 +198,11 @@ func main() {
 	switch os.Args[1] {
 	case "sh":
 		shSet.Parse(os.Args[2:])
-		execSh()
+		if *shCoojaPtr {
+			execSh("cooja")
+		} else {
+			execSh("/bin/bash")
+		}
 	case "rm":
 		rmSet.Parse(os.Args[2:])
 		execRm()

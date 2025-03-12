@@ -15,14 +15,27 @@ make install
 
 To allow X11 to work with Cooja on Linux and Docker, use the following command:
 ```bash
-xhost +local:docker
+xhost +local:docker # or
+contiker fix -xhost # To fix through contiker
 ```
 
 ## Run
 
 ```bash
-contiker -v . # Run with . as mounted dir
+# Init Contiki
+contiker init # Install Contiki in the current directory
+contiker init -git https://github.com/contiki-ng/contiki-ng.git # With specific git
+contiker init -v contiki-ng # In specific folder
+
+# Start Contiki container
 contiker # Run with contents of $CNG_PATH as mounted dir
-contiker -sh # Open a shell in already running container
-contiker -rm # Remove current container
+contiker -v . # Run with . as mounted dir
+
+# Management of Contiker containers
+contiker sh # Open a shell in already running container
+contiker rm # Remove current container
+
+# Common fixes
+contiker fix -docker # Add current user the `docker` group
+contiker fix -xhost # Fix common xhost issue with cooja
 ```
