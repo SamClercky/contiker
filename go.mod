@@ -1,3 +1,3 @@
-module clercky.be/contiker
+module github.com/SamClercky/contiker
 
-go 1.24.0
+go 1.23.0
