@@ -4,6 +4,7 @@ New and improved contiker script to work with variable workspace directories and
 
 ## Prerequisites
 
+- Git
 - Go
 - Make
 - Docker
@@ -12,6 +13,8 @@ New and improved contiker script to work with variable workspace directories and
 ## Install
 
 ```bash
+git clone https://github.com/SamClercky/contiker.git
+cd contiker
 make install
 ```
 
