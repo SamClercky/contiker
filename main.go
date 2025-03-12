@@ -132,7 +132,7 @@ func execRm() {
 	}
 }
 
-func execInit(url string) {
+func execInit(url string, folder string) {
 	if len(url) == 0 {
 		url = "https://github.com/contiki-ng/contiki-ng.git"
 	}
@@ -142,7 +142,8 @@ func execInit(url string) {
 		"clone",
 		"--recurse-submodules",
 		fmt.Sprintf("-j%d", numCpus),
-		url)
+		url,
+		folder)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	cmd.Stdin = os.Stdin
@@ -154,8 +155,8 @@ func execInit(url string) {
 
 	// Print some help information
 	cwd, _ := os.Getwd()
-	fmt.Printf("To make the current directory the permanent Contiki install, add the following line to your .bashrc\n")
-	fmt.Printf("export CNG_PATH=\"%s\"\n\n", path.Join(cwd, url))
+	fmt.Printf("\n\nTo make the current directory the permanent Contiki install, add the following line to your .bashrc\n")
+	fmt.Printf("export CNG_PATH=\"%s\"\n\n", path.Join(cwd, folder))
 }
 
 func main() {
@@ -164,6 +165,7 @@ func main() {
 
 	initSet := flag.NewFlagSet("init", flag.ExitOnError)
 	initUrlPtr := initSet.String("git", "", "Git clone url")
+	initVolumePtr := initSet.String("v", "contiki-ng", "Place to put Contiki folder")
 
 	fixSet := flag.NewFlagSet("fix", flag.ExitOnError)
 	xhostPtr := fixSet.Bool("xhost", false, "Fix xhost (X11 connectivity) issue")
@@ -173,7 +175,7 @@ func main() {
 
 	for _, v := range os.Args[1:] {
 		if v == "-h" {
-			fmt.Printf("Valid subcommands are: sh, rm, init\n")
+			fmt.Printf("Valid subcommands are: sh, rm, init, fix\n")
 
 			flag.Usage()
 			shSet.Usage()
@@ -201,7 +203,7 @@ func main() {
 		execRm()
 	case "init":
 		initSet.Parse(os.Args[2:])
-		execInit(*initUrlPtr)
+		execInit(*initUrlPtr, *initVolumePtr)
 	case "fix":
 		fixSet.Parse(os.Args[2:])
 		if *xhostPtr {
