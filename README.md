@@ -6,6 +6,8 @@ New and improved contiker script to work with variable workspace directories and
 
 - Go
 - Make
+- Docker
+- xhost (used to fix permissions)
 
 ## Install
 
