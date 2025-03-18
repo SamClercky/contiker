@@ -92,7 +92,7 @@ func execFixDocker() {
 	fmt.Printf("Now restart your PC/VM to have the changes take effect\n")
 }
 
-func execDocker(volume *string, startCmd string) {
+func execDocker(volume *string, startCmd string, isRoot bool) {
 	displayEnv := os.Getenv("DISPLAY")
 	cngPathEnv := os.Getenv("CNG_PATH")
 
@@ -103,16 +103,22 @@ func execDocker(volume *string, startCmd string) {
 		mountedPath = &cngPathEnv
 	}
 
-	user, err := user.Current()
 	var userUid string
 	var userGid string
-	if err != nil {
-		fmt.Printf("[ERROR] Could not get current user, using default user instead. Error: %a", err)
-		userUid = "1000"
-		userGid = "1000"
+
+	if isRoot {
+		userUid = "0"
+		userGid = "0"
 	} else {
-		userUid = user.Uid
-		userGid = user.Gid
+		user, err := user.Current()
+		if err != nil {
+			fmt.Printf("[ERROR] Could not get current user, using default user instead. Error: %a", err)
+			userUid = "1000"
+			userGid = "1000"
+		} else {
+			userUid = user.Uid
+			userGid = user.Gid
+		}
 	}
 
 	// check if up
@@ -224,6 +230,7 @@ func main() {
 
 	volumePtr := flag.String("v", "", "Volume to be mounted")
 	execPtr := flag.String("e", "/bin/bash", "Run command")
+	rootPtr := flag.Bool("root", false, "Execute as root")
 
 	for _, v := range os.Args[1:] {
 		if v == "-h" {
@@ -256,7 +263,7 @@ func main() {
 	// If no arguments
 	if len(os.Args) == 1 {
 		flag.Parse()
-		execDocker(volumePtr, *execPtr)
+		execDocker(volumePtr, *execPtr, *rootPtr)
 
 		return
 	}
@@ -293,9 +300,9 @@ func main() {
 		fmt.Printf("All fixes applied\n")
 	case "cooja":
 		flag.Parse()
-		execDocker(volumePtr, "cooja")
+		execDocker(volumePtr, "cooja", *rootPtr)
 	default:
 		flag.Parse()
-		execDocker(volumePtr, *execPtr)
+		execDocker(volumePtr, *execPtr, *rootPtr)
 	}
 }
