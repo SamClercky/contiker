@@ -46,4 +46,5 @@ contiker up # Check if currently a container is up
 # Common fixes
 contiker fix -docker # Add current user the `docker` group
 contiker fix -xhost # Fix common xhost issue with cooja
+contiker fix -fileperm # Fix common file permission errors in current Contiki instance
 ```

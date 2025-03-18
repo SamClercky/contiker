@@ -69,6 +69,8 @@ func execFixXhost() {
 	if errRun != nil {
 		fmt.Printf("[ERROR] Command did end in error: %a\n", errRun)
 	}
+
+	fmt.Println("> Xhost fix successful")
 }
 
 func execFixDocker() {
@@ -89,7 +91,40 @@ func execFixDocker() {
 		fmt.Printf("[ERROR] Command did end in error: %a\n", errRun)
 	}
 
+	fmt.Println("> Docker fix successful")
 	fmt.Printf("Now restart your PC/VM to have the changes take effect\n")
+}
+
+func execFixFilePermissions() {
+	fmt.Printf("Starting file permissions fix\n")
+	user, err := user.Current()
+	if err != nil {
+		fmt.Printf("[ERROR] Could not get user: %a\n", err)
+		os.Exit(-1)
+	}
+
+	isUp, err := checkContikerUp()
+	if err != nil {
+		fmt.Printf("[ERROR] Could not fix file permissions as it was not possible to check if Contiki was up with error: %a\n", err)
+		return
+	}
+	if !isUp {
+		fmt.Printf("[ERROR] Could not fix file permissions as there was no Contiki instance up, please run the following command:\n\n\tcontiker\n\n")
+		return
+	}
+
+	cmd := exec.Command("docker", "exec", "-it", "contiker", "chown", "-R", fmt.Sprintf("%s:%s", user.Uid, user.Gid), "/home/user/contiki-ng")
+
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stdout
+
+	errRun := cmd.Run()
+	if errRun != nil {
+		fmt.Printf("[ERROR] Command did end in error: %a\n", errRun)
+	}
+
+	fmt.Println("> File permission fix successful")
 }
 
 func execDocker(volume *string, startCmd string, isRoot bool) {
@@ -227,6 +262,7 @@ func main() {
 	fixSet := flag.NewFlagSet("fix", flag.ExitOnError)
 	xhostPtr := fixSet.Bool("xhost", false, "Fix xhost (X11 connectivity) issue")
 	dockerPermPtr := fixSet.Bool("docker", false, "Fix Docker permission issue")
+	filePermPtr := fixSet.Bool("fileperm", false, "Fix file permission issues by changing the ownership of all files in the current Contiki instance to the current user")
 
 	volumePtr := flag.String("v", "", "Volume to be mounted")
 	execPtr := flag.String("e", "/bin/bash", "Run command")
@@ -296,6 +332,9 @@ func main() {
 		}
 		if *dockerPermPtr {
 			execFixDocker()
+		}
+		if *filePermPtr {
+			execFixFilePermissions()
 		}
 		fmt.Printf("All fixes applied\n")
 	case "cooja":
