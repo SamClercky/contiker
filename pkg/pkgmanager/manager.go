@@ -10,7 +10,7 @@ const (
 
 type PkgManager interface {
 	// Ensure that a specific package has been installed
-	Install(pkg map[string]string) error
+	Install(pkg map[int]string) error
 	// Check if current manager is available
 	CheckAvailable() bool
 	// Install current manager if not yet available

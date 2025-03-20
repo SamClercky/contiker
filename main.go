@@ -10,6 +10,8 @@ import (
 	"path"
 	"runtime"
 	"strings"
+
+	_ "github.com/SamClercky/contiker/pkg/pkgmanager"
 )
 
 type Container struct {

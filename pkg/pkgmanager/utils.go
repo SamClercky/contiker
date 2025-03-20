@@ -11,15 +11,16 @@ import (
 func askPermission(question string) bool {
 	for {
 		reader := bufio.NewReader(os.Stdin)
-		fmt.Printf("> %s [Y/n]: ")
+		fmt.Printf("> %s [Y/n]: ", question)
 		text, _ := reader.ReadString('\n')
 		text = strings.Trim(text, "\t\n ") // I presume, at this moment in time, that this is enough
 
-		if text == "Y" || text == "y" {
+		switch text {
+		case "Y", "y":
 			return true
-		} else if text == "N" || text == "n" {
+		case "N", "n":
 			return false
-		} else {
+		default:
 			// just ask again
 		}
 	}

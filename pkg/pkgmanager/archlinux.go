@@ -28,7 +28,7 @@ func (manager *archPkgManager) Install(pkg map[int]string) error {
 	}
 
 	// Install pkg
-	cmd := exec.Command("sudo", "pacman", "-S", pkgName)
+	cmd := exec.Command("sudo", "pacman", "-Sy", pkgName, "--noconfirm")
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	cmd.Stdin = os.Stdin

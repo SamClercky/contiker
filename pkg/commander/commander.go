@@ -17,6 +17,10 @@ func (cmd *Command) Exists() bool {
 	return err == nil
 }
 
-func (cmd *Command) EnsureInstalled(manager pkgmanager.PkgManager) (bool, error) {
+func (cmd *Command) EnsureInstalled(manager pkgmanager.PkgManager) error {
+	if cmd.Exists() {
+		return nil
+	}
+
 	return manager.Install(cmd.program)
 }
