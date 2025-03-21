@@ -38,6 +38,7 @@ contiker -v . # Run with . as mounted dir
 contiker -e bash # Run specific command
 contiker cooja # Alias for `contiker -e cooja`
 contiker -root # Create a root shell
+contiker -reset # Stop already running Contiker instances
 
 # Management of Contiker containers
 contiker rm # Remove current container

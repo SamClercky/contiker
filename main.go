@@ -267,6 +267,7 @@ func main() {
 	volumePtr := flag.String("v", "", "Volume to be mounted")
 	execPtr := flag.String("e", "/bin/bash", "Run command")
 	rootPtr := flag.Bool("root", false, "Execute as root")
+	resetPtr := flag.Bool("reset", false, "Stop already running Contiker instances before starting")
 
 	for _, v := range os.Args[1:] {
 		if v == "-h" {
@@ -296,11 +297,27 @@ func main() {
 		}
 	}
 
+	startDocker := func() {
+		flag.Parse()
+
+		if *resetPtr {
+			up, err := checkContikerUp()
+			if err != nil {
+				fmt.Printf("[ERROR] Could not check if contiker was up, with error: %a\n", err)
+			} else {
+				if up {
+					execRm()
+				}
+				// If not up, then we don't need to remove the container
+			}
+		}
+
+		execDocker(volumePtr, *execPtr, *rootPtr)
+	}
+
 	// If no arguments
 	if len(os.Args) == 1 {
-		flag.Parse()
-		execDocker(volumePtr, *execPtr, *rootPtr)
-
+		startDocker()
 		return
 	}
 
@@ -338,10 +355,10 @@ func main() {
 		}
 		fmt.Printf("All fixes applied\n")
 	case "cooja":
-		flag.Parse()
-		execDocker(volumePtr, "cooja", *rootPtr)
+		coojaStr := "cooja"
+		execPtr = &coojaStr
+		startDocker()
 	default:
-		flag.Parse()
-		execDocker(volumePtr, *execPtr, *rootPtr)
+		startDocker()
 	}
 }
