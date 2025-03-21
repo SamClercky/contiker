@@ -3,25 +3,33 @@ package pkgmanager
 import (
 	"errors"
 	"fmt"
-	"os"
-	"os/exec"
+
+	commandcontext "github.com/SamClercky/contiker/pkg/command-context"
 )
 
 type macOSPkgManager struct{}
 
-func (manager *macOSPkgManager) CheckAvailable() bool {
-	_, err := exec.LookPath("brew")
-	return err == nil
+func (manager *macOSPkgManager) CheckAvailable(ctx commandcontext.CC) bool {
+	status, err := ctx.CommandExists("brew")
+	if err != nil {
+		fmt.Printf("[ERROR] Could not check if brew is available with error: %a\n", err)
+		return false
+	}
+
+	return status
 }
 
 func (manager *macOSPkgManager) InstallManager() (bool, error) {
-	fmt.Printf("[ACTION] Could not install winget, as you need to do this yourself in the Windows store\n")
-
+	// TODO: actually install brew
 	return false, nil
 }
 
-func (manager *macOSPkgManager) Install(pkg map[int]string) error {
-	if !manager.CheckAvailable() {
+func (manager *macOSPkgManager) UpdateRegistry(ctx *commandcontext.CC) error {
+	return nil
+}
+
+func (manager *macOSPkgManager) Install(ctx commandcontext.CC, pkg map[int]string) error {
+	if !manager.CheckAvailable(ctx) {
 		return errors.New("brew is unavailable")
 	}
 
@@ -32,10 +40,5 @@ func (manager *macOSPkgManager) Install(pkg map[int]string) error {
 	}
 
 	// Install pkg
-	cmd := exec.Command("brew", "install", pkgName)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	cmd.Stdin = os.Stdin
-
-	return cmd.Run()
+	return ctx.Run("brew", "install", pkgName)
 }

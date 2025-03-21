@@ -2,23 +2,37 @@ package pkgmanager
 
 import (
 	"errors"
-	"os"
-	"os/exec"
+	"fmt"
+
+	commandcontext "github.com/SamClercky/contiker/pkg/command-context"
 )
 
 type ubuntuPkgManager struct{}
 
-func (manager *ubuntuPkgManager) CheckAvailable() bool {
-	_, err := exec.LookPath("apt")
-	return err == nil
+func (manager *ubuntuPkgManager) CheckAvailable(ctx commandcontext.CC) bool {
+	status, err := ctx.CommandExists("apt")
+	if err != nil {
+		fmt.Printf("[ERROR] Could not check if apt is available with error: %a\n", err)
+		return false
+	}
+
+	return status
 }
 
 func (manager *ubuntuPkgManager) InstallManager() (bool, error) {
-	return true, nil
+	return false, nil
 }
 
-func (manager *ubuntuPkgManager) Install(pkg map[int]string) error {
-	if !manager.CheckAvailable() {
+func (manager *ubuntuPkgManager) UpdateRegistry(ctx commandcontext.CC) error {
+	if !manager.CheckAvailable(ctx) {
+		return errors.New("apt is unavailable")
+	}
+
+	return ctx.Run("sudo", "apt", "update")
+}
+
+func (manager *ubuntuPkgManager) Install(ctx commandcontext.CC, pkg map[int]string) error {
+	if !manager.CheckAvailable(ctx) {
 		return errors.New("apt is unavailable")
 	}
 
@@ -28,10 +42,5 @@ func (manager *ubuntuPkgManager) Install(pkg map[int]string) error {
 	}
 
 	// Install pkg
-	cmd := exec.Command("sudo", "apt", "install", "-y", pkgName)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	cmd.Stdin = os.Stdin
-
-	return cmd.Run()
+	return ctx.Run("sudo", "apt", "install", "-y", pkgName)
 }

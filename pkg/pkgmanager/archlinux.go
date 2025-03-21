@@ -2,23 +2,33 @@ package pkgmanager
 
 import (
 	"errors"
-	"os"
-	"os/exec"
+	"fmt"
+
+	commandcontext "github.com/SamClercky/contiker/pkg/command-context"
 )
 
 type archPkgManager struct{}
 
-func (manager *archPkgManager) CheckAvailable() bool {
-	_, err := exec.LookPath("pacman")
-	return err == nil
+func (manager *archPkgManager) CheckAvailable(ctx commandcontext.CC) bool {
+	status, err := ctx.CommandExists("pacman")
+	if err != nil {
+		fmt.Printf("[ERROR] Could not check if pacman is available with error: %a\n", err)
+		return false
+	}
+
+	return status
 }
 
 func (manager *archPkgManager) InstallManager() (bool, error) {
-	return true, nil
+	return false, nil
 }
 
-func (manager *archPkgManager) Install(pkg map[int]string) error {
-	if !manager.CheckAvailable() {
+func (manager *archPkgManager) UpdateRegistry(ctx *commandcontext.CC) error {
+	return nil
+}
+
+func (manager *archPkgManager) Install(ctx commandcontext.CC, pkg map[int]string) error {
+	if !manager.CheckAvailable(ctx) {
 		return errors.New("pacman is unavailable")
 	}
 
@@ -28,10 +38,5 @@ func (manager *archPkgManager) Install(pkg map[int]string) error {
 	}
 
 	// Install pkg
-	cmd := exec.Command("sudo", "pacman", "-Sy", pkgName, "--noconfirm")
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	cmd.Stdin = os.Stdin
-
-	return cmd.Run()
+	return ctx.Run("sudo", "pacman", "-Sy", pkgName, "--noconfirm")
 }
