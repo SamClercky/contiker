@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"os/user"
 	"path"
+	"path/filepath"
 	"runtime"
 	"strings"
 )
@@ -27,7 +28,16 @@ type Container struct {
 	Status       string `json:"Status"`
 }
 
-func checkContikerUp() (bool, error) {
+type Mount struct {
+	Type        string `json:"Type"`
+	Source      string `json:"Source"`
+	Destination string `json:"Destination"`
+	Mode        string `json:"Mode"`
+	ReadOnly    bool   `json:"RW"`
+	Propagation string `json:"Propagation"`
+}
+
+func queryDocker() ([]Container, error) {
 	cmd := exec.Command("docker", "container", "ls",
 		"-f", "name=contiker",
 		"--format", "json")
@@ -35,7 +45,7 @@ func checkContikerUp() (bool, error) {
 	cmd.Stdin = os.Stdin
 	output, err := cmd.Output()
 	if err != nil {
-		return false, err
+		return nil, err
 	}
 
 	lines := strings.Split(strings.TrimSpace(string(output)), "\n")
@@ -54,7 +64,73 @@ func checkContikerUp() (bool, error) {
 		containers = append(containers, container)
 	}
 
+	return containers, nil
+}
+
+// Retrieve the mounts from the contiker container
+func queryMounts() ([]Mount, error) {
+	cmd := exec.Command("docker", "inspect",
+		"--format", "{{json .Mounts }}",
+		"contiker")
+	cmd.Stderr = os.Stderr
+	cmd.Stdin = os.Stdin
+	output, err := cmd.Output()
+	if err != nil {
+		return nil, err
+	}
+
+	lines := strings.Split(strings.TrimSpace(string(output)), "\n")
+
+	if len(lines) > 0 {
+		// Get the first non-zero line
+		idx := 0
+		line := lines[idx]
+		for len(line) == 0 && idx < len(lines) {
+			idx += 1
+			line = lines[idx]
+		}
+
+		// No mounts found
+		if idx >= len(lines) {
+			return make([]Mount, 0), nil
+		}
+
+		var mounts []Mount
+		if err := json.Unmarshal([]byte(line), &mounts); err != nil {
+			fmt.Println("Error parsing JSON:", err)
+			return nil, err
+		}
+
+		return mounts, nil
+	}
+
+	// No mounts found
+	return make([]Mount, 0), nil
+}
+
+func checkContikerUp() (bool, error) {
+	containers, err := queryDocker()
+	if err != nil {
+		return false, err
+	}
+
 	return len(containers) > 0, nil
+}
+
+// Check if a certain host folder has been mounted
+func checkContikerUpWithMount(mount string) (bool, error) {
+	mounts, err := queryMounts()
+	if err != nil {
+		return false, err
+	}
+
+	for i := range mounts {
+		if mounts[i].Source == mount {
+			return true, nil
+		}
+	}
+
+	return false, nil
 }
 
 func execFixXhost() {
@@ -127,6 +203,28 @@ func execFixFilePermissions() {
 	fmt.Println("> File permission fix successful")
 }
 
+// Ask the user to reset the current contiker instance
+func askReset() bool {
+	for {
+		fmt.Printf("Do you want to reset the current contiker instance? [yN]:")
+		var answer string
+		_, err := fmt.Scan(&answer)
+		if err != nil {
+			fmt.Printf("[ERROR] Could not read from stdin with error: %a\n", err)
+		}
+
+		if len(answer) == 0 {
+			return false
+		} else if answer == "y" || answer == "Y" || answer == "Yes" || answer == "YES" {
+			return true
+		} else if answer == "n" || answer == "N" || answer == "No" || answer == "NO" {
+			return false
+		} else {
+			fmt.Printf("Invalid answer. Only y/n is accepted.\n")
+		}
+	}
+}
+
 func execDocker(volume *string, startCmd string, isRoot bool) {
 	displayEnv := os.Getenv("DISPLAY")
 	cngPathEnv := os.Getenv("CNG_PATH")
@@ -136,6 +234,10 @@ func execDocker(volume *string, startCmd string, isRoot bool) {
 		mountedPath = volume
 	} else {
 		mountedPath = &cngPathEnv
+	}
+	absMountedPath, err := filepath.Abs(*mountedPath)
+	if err != nil {
+		fmt.Printf("[ERROR] Could not resolve absolute path %s: %a", *mountedPath, err)
 	}
 
 	var userUid string
@@ -163,9 +265,24 @@ func execDocker(volume *string, startCmd string, isRoot bool) {
 		os.Exit(-1)
 	}
 
-	if isUp && len(*volume) > 0 {
-		fmt.Println("[WARN] You are specifying a volume while a container is already activated. The previous setup will remain. To create a new contiker environment with the specified volume, run:\n\tcontiker rm && contiker -v", *volume)
-		fmt.Println()
+	if isUp {
+		hasMountedPath, err := checkContikerUpWithMount(absMountedPath)
+		if err != nil {
+			fmt.Printf("[ERROR] Could not check if the contiker had previously a folder mounted: %a", err)
+			os.Exit(-1)
+		}
+
+		if !hasMountedPath {
+			fmt.Println("[WARN] You are specifying a volume while a container is already activated.")
+			fmt.Println()
+
+			if askReset() {
+				execRm()
+				isUp = false
+			} else {
+				fmt.Printf("Using previous contiker instance.\n")
+			}
+		}
 	}
 
 	if !isUp {
