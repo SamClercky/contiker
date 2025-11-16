@@ -1,5 +1,6 @@
 [workspace]
 members = ["contiker-docker", "contiker-wsl"]
+default-run = "contiker"
 
 [package]
 name = "contiker"
@@ -7,3 +8,10 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+clap = { version = "4.5.51", features = ["derive"] }
+
+[target.'cfg(target_os = "windows")'.dependencies]
+contiker-wsl = { path = "./contiker-wsl" }
+
+[target.'cfg(target_os = "linux")'.dependencies]
+contiker-docker = { path = "./contiker-docker" }
