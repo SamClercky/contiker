@@ -1,6 +1,5 @@
 [workspace]
 members = ["contiker-docker", "contiker-wsl"]
-default-run = "contiker"
 
 [package]
 name = "contiker"
