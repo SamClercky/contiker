@@ -1,5 +1,14 @@
 use clap::{Args, Parser};
 
+#[cfg(target_os = "windows")]
+mod windows;
+#[cfg(target_os = "windows")]
+use windows::*;
+#[cfg(target_os = "linux")]
+mod linux;
+#[cfg(target_os = "linux")]
+use linux::*;
+
 #[derive(Parser, Debug, Clone)]
 /// Manage the environment for Contiki-NG
 ///
@@ -40,13 +49,25 @@ struct ExecArgs {
     pub root: bool,
     #[arg(short, long)]
     /// Set the uid
-    pub uid: Option<u8>,
+    pub uid: Option<u32>,
     #[arg(short, long)]
     /// Set the gid
-    pub gid: Option<u8>,
+    pub gid: Option<u32>,
 }
 
 fn main() {
     let cli = Cli::parse();
-    println!("{cli:?}");
+
+    let result = match cli {
+        Cli::Up => handle_up(),
+        Cli::Rm => handle_rm(),
+        Cli::Init(init_args) => todo!(),
+        Cli::Fix => todo!(),
+        Cli::Exec(exec_args) => handle_exec(exec_args),
+        Cli::Reset => todo!(),
+    };
+
+    if let Err(err) = result {
+        eprintln!("[ERROR] {err:?}");
+    }
 }
