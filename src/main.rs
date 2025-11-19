@@ -30,6 +30,8 @@ enum Cli {
     Exec(ExecArgs),
     /// Reset the environment
     Reset,
+    /// Start Cooja (shorthand for `contiker exec cooja`)
+    Cooja(ExecArgs),
 }
 
 #[derive(Args, Debug, Clone)]
@@ -76,6 +78,10 @@ fn main() {
         Cli::Fix => todo!(),
         Cli::Exec(exec_args) => handle_exec(exec_args),
         Cli::Reset => handle_reset(),
+        Cli::Cooja(exec_args) => handle_exec(ExecArgs {
+            command: vec!["cooja".to_string()],
+            ..exec_args
+        }),
     };
 
     if let Err(err) = result {
