@@ -3,9 +3,9 @@ use std::path::Path;
 use std::time::Duration;
 use std::{collections::HashMap, path::PathBuf};
 
-use anyhow::Context;
+use anyhow::{Context, bail};
 use bollard::exec::StartExecOptions;
-use bollard::query_parameters::StartContainerOptions;
+use bollard::query_parameters::{ListImagesOptions, StartContainerOptions};
 use bollard::{
     Docker,
     exec::StartExecResults,
@@ -101,6 +101,7 @@ impl DockerManager {
     pub fn reset(&self) -> anyhow::Result<()> {
         self.rt.block_on(async {
             self.rm_contiker().await?;
+            self.pull_contiker_container(false).await?;
             self.ensure_contiker_up(User::infer()).await?;
 
             Ok(())
@@ -122,6 +123,43 @@ impl DockerManager {
                     .map(|path| Path::new(&path).to_path_buf())
             })
             .map(|path| std::path::absolute(&path).unwrap())
+    }
+
+    async fn pull_contiker_container(&self, use_cache: bool) -> anyhow::Result<()> {
+        let mut needs_pulling = true;
+
+        if use_cache {
+            // Check if we have already the image in cache
+            let has_contiker_image = !self
+                .client
+                .list_images(Some(ListImagesOptions {
+                    filters: Some(HashMap::from([(
+                        "reference".to_string(),
+                        vec!["contiker/contiki-ng".to_string()],
+                    )])),
+                    ..Default::default()
+                }))
+                .await
+                .context("while listing available images")?
+                .is_empty();
+
+            needs_pulling = !has_contiker_image;
+        }
+
+        if needs_pulling {
+            // TODO: Refactor this to also use the API and not the CLI
+            println!("Pulling image from Docker Hub");
+            let command_status = std::process::Command::new("docker")
+                .arg("pull")
+                .arg("contiker/contiki-ng")
+                .status()
+                .context("while pulling the contiker image")?;
+
+            if !command_status.success() {
+                bail!("pull command did not finish succesfully");
+            }
+        }
+        Ok(())
     }
 
     async fn query_docker(&self) -> anyhow::Result<Option<ContainerInfo>> {
@@ -160,6 +198,9 @@ impl DockerManager {
             println!("[WARN] No DISPLAY environment found. This will result in you not being able to use cooja.");
             ":0".to_string()
         });
+
+        // Pull if necessary
+        self.pull_contiker_container(true).await?;
 
         let container = self.query_docker().await?;
         let container = match container {
@@ -255,7 +296,11 @@ impl DockerManager {
                     attach_stderr: Some(true),
                     console_size: self.term_size.map(|(w, h)| vec![w as usize, h as usize]),
                     tty: Some(true),
-                    cmd: Some(cmd),
+                    cmd: Some(if cmd.is_empty() {
+                        vec!["bash".to_string()]
+                    } else {
+                        cmd
+                    }),
                     privileged: Some(true),
                     user: Some(format!("{}:{}", user.uid, user.gid)),
                     ..Default::default()
