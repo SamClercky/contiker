@@ -1,8 +1,7 @@
-use std::path::Path;
-
 use contiker_docker::{DockerManager, User};
+use contiker_init::GitManager;
 
-use crate::ExecArgs;
+use crate::{ExecArgs, InitArgs};
 
 pub fn handle_up() -> anyhow::Result<()> {
     let docker = DockerManager::new(None)?;
@@ -23,7 +22,7 @@ pub fn handle_rm() -> anyhow::Result<()> {
 }
 
 pub fn handle_exec(args: ExecArgs) -> anyhow::Result<()> {
-    let docker = DockerManager::new(args.volume.map(|volume| Path::new(&volume).to_path_buf()))?;
+    let docker = DockerManager::new(args.volume)?;
     docker.exec(args.command, {
         let mut user = User::infer();
         if let Some(uid) = args.uid {
@@ -39,6 +38,23 @@ pub fn handle_exec(args: ExecArgs) -> anyhow::Result<()> {
 
         user
     })?;
+
+    Ok(())
+}
+
+pub fn handle_reset() -> anyhow::Result<()> {
+    let docker = DockerManager::new(None)?;
+    docker.reset()
+}
+
+pub fn handle_init(args: InitArgs) -> anyhow::Result<()> {
+    let git = GitManager::new(
+        args.volume.as_deref(),
+        None,
+        args.branch.as_deref(),
+        !args.no_shallow,
+    );
+    git.install()?;
 
     Ok(())
 }

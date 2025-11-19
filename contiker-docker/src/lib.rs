@@ -98,6 +98,15 @@ impl DockerManager {
             .block_on(async { Ok(self.query_docker().await?.is_some()) })
     }
 
+    pub fn reset(&self) -> anyhow::Result<()> {
+        self.rt.block_on(async {
+            self.rm_contiker().await?;
+            self.ensure_contiker_up(User::infer()).await?;
+
+            Ok(())
+        })
+    }
+
     fn volume(&self) -> Option<PathBuf> {
         self.volume_path
             .as_ref()

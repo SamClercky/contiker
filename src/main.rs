@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use clap::{Args, Parser};
 
 #[cfg(target_os = "windows")]
@@ -37,7 +39,13 @@ struct InitArgs {
     pub git: Option<String>,
     /// Place to put Contiki folder
     #[arg(short, long)]
-    pub volume: Option<String>,
+    pub volume: Option<PathBuf>,
+    /// Do not perform a shallow clone (worse performance)
+    #[arg(long)]
+    pub no_shallow: bool,
+    #[arg(short, long)]
+    /// Optionally specify a branch
+    pub branch: Option<String>,
 }
 
 #[derive(Args, Debug, Clone)]
@@ -55,7 +63,7 @@ struct ExecArgs {
     pub gid: Option<u32>,
     #[arg(short, long)]
     /// Set the mount volume explicitly and asks if this is different from the last time
-    pub volume: Option<String>,
+    pub volume: Option<PathBuf>,
 }
 
 fn main() {
@@ -64,10 +72,10 @@ fn main() {
     let result = match cli {
         Cli::Up => handle_up(),
         Cli::Rm => handle_rm(),
-        Cli::Init(init_args) => todo!(),
+        Cli::Init(init_args) => handle_init(init_args),
         Cli::Fix => todo!(),
         Cli::Exec(exec_args) => handle_exec(exec_args),
-        Cli::Reset => todo!(),
+        Cli::Reset => handle_reset(),
     };
 
     if let Err(err) = result {

@@ -14,5 +14,5 @@ tokio-stream = "0.1.17"
 tokio-util = { version = "0.7.17", features = ["io"] }
 anyhow.workspace = true
 rustix = { version = "1.1.2", features = ["process"] }
-termion = { version = "4.0" }
 futures-util = "0.3.31"
+termion.workspace = true
