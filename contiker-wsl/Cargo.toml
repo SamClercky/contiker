@@ -5,3 +5,4 @@ edition = "2024"
 
 [dependencies]
 wsl-api = "0.1.0"
+anyhow.workspace = true

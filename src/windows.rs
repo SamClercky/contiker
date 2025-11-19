@@ -42,6 +42,10 @@ pub fn handle_init(args: InitArgs) -> anyhow::Result<()> {
     Ok(())
 }
 
+pub fn handle_code(args: ExecArgs) -> anyhow::Result<()> {
+    todo!()
+}
+
 #[derive(Subcommand, Default, Debug, Clone)]
 pub enum Fixes {
     #[default]

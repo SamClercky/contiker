@@ -293,6 +293,7 @@ dependencies = [
 name = "contiker-wsl"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "wsl-api",
 ]
 

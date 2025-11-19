@@ -1,4 +1,4 @@
-use std::process::Command;
+use std::{path::Path, process::Command};
 
 use anyhow::{Context, bail};
 use clap::Subcommand;
@@ -65,6 +65,19 @@ pub fn handle_init(args: InitArgs) -> anyhow::Result<()> {
     println!();
     println!("export CNG_PATH={:?}", git.volume());
     println!();
+
+    Ok(())
+}
+
+pub fn handle_code(args: ExecArgs) -> anyhow::Result<()> {
+    let command_status = std::process::Command::new("code")
+        .arg(args.volume.as_deref().unwrap_or(Path::new(".")))
+        .status()
+        .context("while launching vscode")?;
+
+    if !command_status.success() {
+        bail!("Starting VSCode was unsuccesful");
+    }
 
     Ok(())
 }

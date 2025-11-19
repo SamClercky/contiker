@@ -33,6 +33,8 @@ enum Cli {
     Reset,
     /// Start Cooja (shorthand for `contiker exec cooja`)
     Cooja(ExecArgs),
+    /// Start VSCode in the context of the current contiker instance
+    Code(ExecArgs),
 }
 
 #[derive(Args, Debug, Clone)]
@@ -83,6 +85,7 @@ fn main() {
             command: vec!["cooja".to_string()],
             ..exec_args
         }),
+        Cli::Code(exec_args) => handle_code(exec_args),
     };
 
     if let Err(err) = result {
