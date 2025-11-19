@@ -40,11 +40,7 @@ impl DockerManager {
     pub fn new(volume_path: Option<PathBuf>) -> anyhow::Result<Self> {
         Ok(Self {
             client: Docker::connect_with_local_defaults().context("while connecting to Docker")?,
-            volume_path: volume_path.or_else(|| {
-                std::env::var("CNG_PATH")
-                    .ok()
-                    .map(|path| Path::new(&path).to_path_buf())
-            }),
+            volume_path,
             term_size: termion::terminal_size().ok(),
             rt: runtime::Builder::new_current_thread()
                 .enable_all()
@@ -57,13 +53,66 @@ impl DockerManager {
     }
 
     pub fn exec(&self, cmd: Vec<String>, user: User) -> anyhow::Result<()> {
-        self.rt
-            .block_on(async { self.exec_docker(cmd, user).await })
+        self.rt.block_on(async {
+            // Check if we have a volume set
+            if let Some(volume_path) = self.volume() {
+                let docker_status = self.query_docker().await?;
+                if let Some(docker_status) = docker_status {
+                    // We already have a container, check if we still have the same volume mounted
+                    // If not, we ask if we need to change
+                    if !docker_status.has_mount(&volume_path) {
+                        print!("Detected that the current running instance of contiker is using a different mount point. Do you want to restart and switch to {:?}? [y|n] ", volume_path);
+                        let _ = std::io::stdout().flush();
+
+                        let stdin = std::io::stdin();
+                        let mut answer = String::new();
+                        let mut valid_answer = false;
+                        let mut answer_result = false;
+                        while !valid_answer {
+                            let _ = stdin.read_line(&mut answer).context("could not read from stdin")?;
+                            let answer = answer.trim();
+                            if "yes".starts_with(answer) {
+                                answer_result = true;
+                                valid_answer = true;
+                            } else if "no".starts_with(answer) {
+                                answer_result = false;
+                                valid_answer = true;
+                            }
+                        }
+
+                        if answer_result {
+                            // We answered yes, so we restart by shutting down now, and later
+                            // restarting
+                            self.rm_contiker().await?;
+                        }
+                    }
+                }
+            }
+
+            self.exec_docker(cmd, user).await
+        })
     }
 
     pub fn is_up(&self) -> anyhow::Result<bool> {
         self.rt
             .block_on(async { Ok(self.query_docker().await?.is_some()) })
+    }
+
+    fn volume(&self) -> Option<PathBuf> {
+        self.volume_path
+            .as_ref()
+            .map(|path| std::path::absolute(path).unwrap())
+    }
+
+    fn volume_path_or_cng(&self) -> Option<PathBuf> {
+        self.volume_path
+            .clone()
+            .or_else(|| {
+                std::env::var("CNG_PATH")
+                    .ok()
+                    .map(|path| Path::new(&path).to_path_buf())
+            })
+            .map(|path| std::path::absolute(&path).unwrap())
     }
 
     async fn query_docker(&self) -> anyhow::Result<Option<ContainerInfo>> {
@@ -108,8 +157,8 @@ impl DockerManager {
             Some(container) => container,
             None => {
                 // No container ready, so start one up
-                let volume_path = self
-                    .volume_path
+                let volume_path = self.volume_path_or_cng();
+                let volume_path = volume_path
                     .as_ref()
                     .context("no volume mount point provided")?
                     .to_str()
@@ -240,11 +289,11 @@ impl DockerManager {
             }
         });
 
-        // Set stdout in raw mode so we can do TTY stuff
+        // Set `stdout` in raw mode so we can do `TTY` stuff
         let stdout = std::io::stdout();
         let mut stdout = stdout.lock().into_raw_mode()?;
 
-        // Pipe Docker attach output into stdout
+        // Pipe Docker attach output into `stdout`
         while let Some(Ok(output)) = output.next().await {
             stdout.write_all(output.into_bytes().as_ref())?;
             stdout.flush()?;
@@ -274,11 +323,11 @@ pub struct ContainerInfo {
 }
 
 impl ContainerInfo {
-    pub fn has_mount(&self, mount: &str) -> bool {
+    pub fn has_mount(&self, mount: &Path) -> bool {
         // When we add a volume, it will be a bind volume with the given mount point
         self.mounts.iter().any(|mount_info| {
             mount_info.typ == Some(bollard::secret::MountPointTypeEnum::BIND)
-                && mount_info.source.as_deref() == Some(mount)
+                && mount_info.source.as_ref().map(Path::new) == Some(mount)
         })
     }
 }

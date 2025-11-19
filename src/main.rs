@@ -35,7 +35,7 @@ struct InitArgs {
     /// Optional custom git url
     #[arg(long)]
     pub git: Option<String>,
-    /// Placo to put Contiki folder
+    /// Place to put Contiki folder
     #[arg(short, long)]
     pub volume: Option<String>,
 }
@@ -53,6 +53,9 @@ struct ExecArgs {
     #[arg(short, long)]
     /// Set the gid
     pub gid: Option<u32>,
+    #[arg(short, long)]
+    /// Set the mount volume explicitly and asks if this is different from the last time
+    pub volume: Option<String>,
 }
 
 fn main() {

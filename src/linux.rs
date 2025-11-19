@@ -1,3 +1,5 @@
+use std::path::Path;
+
 use contiker_docker::{DockerManager, User};
 
 use crate::ExecArgs;
@@ -21,7 +23,7 @@ pub fn handle_rm() -> anyhow::Result<()> {
 }
 
 pub fn handle_exec(args: ExecArgs) -> anyhow::Result<()> {
-    let docker = DockerManager::new(None)?;
+    let docker = DockerManager::new(args.volume.map(|volume| Path::new(&volume).to_path_buf()))?;
     docker.exec(args.command, {
         let mut user = User::infer();
         if let Some(uid) = args.uid {
