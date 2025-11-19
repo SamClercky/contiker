@@ -25,7 +25,8 @@ enum Cli {
     /// Initialize Contiki-NG
     Init(InitArgs),
     /// Auto-fix some common issues
-    Fix,
+    #[command(subcommand)]
+    Fix(Fixes),
     /// Execute a command directly
     Exec(ExecArgs),
     /// Reset the environment
@@ -75,7 +76,7 @@ fn main() {
         Cli::Up => handle_up(),
         Cli::Rm => handle_rm(),
         Cli::Init(init_args) => handle_init(init_args),
-        Cli::Fix => todo!(),
+        Cli::Fix(fix) => fix.apply(),
         Cli::Exec(exec_args) => handle_exec(exec_args),
         Cli::Reset => handle_reset(),
         Cli::Cooja(exec_args) => handle_exec(ExecArgs {

@@ -1,3 +1,7 @@
+use std::process::Command;
+
+use anyhow::{Context, bail};
+use clap::Subcommand;
 use contiker_docker::{DockerManager, User};
 use contiker_init::GitManager;
 
@@ -63,4 +67,87 @@ pub fn handle_init(args: InitArgs) -> anyhow::Result<()> {
     println!();
 
     Ok(())
+}
+
+#[derive(Subcommand, Default, Debug, Clone)]
+pub enum Fixes {
+    #[default]
+    All,
+    /// Fix issue related with xhost permissions
+    XHost,
+    /// Fix user not in the docker user group
+    DockerPerm,
+    /// Fix all files are owned by root
+    FilePerm,
+}
+
+impl Fixes {
+    pub fn apply(&self) -> anyhow::Result<()> {
+        match self {
+            Fixes::All => {
+                self.fix_xhost()?;
+                self.fix_dockerperm()?;
+                self.fix_fileperm()?;
+
+                Ok(())
+            }
+            Fixes::XHost => self.fix_xhost(),
+            Fixes::DockerPerm => self.fix_dockerperm(),
+            Fixes::FilePerm => self.fix_fileperm(),
+        }
+    }
+
+    fn fix_xhost(&self) -> anyhow::Result<()> {
+        println!("Applying xhost fix");
+
+        let command_status = Command::new("xhost")
+            .arg("+local:docker")
+            .status()
+            .context("while running the xhost command")?;
+
+        if !command_status.success() {
+            bail!("non-successful error code by xhost command");
+        }
+
+        Ok(())
+    }
+
+    fn fix_dockerperm(&self) -> anyhow::Result<()> {
+        println!("Applying Docker permissions fix");
+
+        let command_status = Command::new("sudo")
+            .arg("usermod")
+            .arg("-aG")
+            .arg(format!("{}", User::infer().uid))
+            .arg("docker")
+            .status()
+            .context("while running the xhost command")?;
+
+        if !command_status.success() {
+            bail!("non-successful error code by xhost command");
+        }
+
+        Ok(())
+    }
+
+    fn fix_fileperm(&self) -> anyhow::Result<()> {
+        println!("Applying file permissions fix");
+
+        let user = User::infer();
+        handle_exec(ExecArgs {
+            command: vec![
+                "chown".to_string(),
+                "-R".to_string(),
+                format!("{}:{}", user.uid, user.gid),
+                "/home/user/contiki-ng".to_string(),
+            ],
+            root: false,
+            uid: Some(user.uid),
+            gid: Some(user.gid),
+            volume: None,
+        })
+        .context("while applying file permissions fix")?;
+
+        Ok(())
+    }
 }
