@@ -25,6 +25,10 @@ impl GitManager {
         }
     }
 
+    pub fn volume(&self) -> PathBuf {
+        std::path::absolute(self.volume.as_path()).unwrap()
+    }
+
     pub fn install(&self) -> anyhow::Result<()> {
         let mut command = std::process::Command::new("git");
         command
