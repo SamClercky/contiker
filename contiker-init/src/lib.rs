@@ -37,6 +37,7 @@ impl GitManager {
             .arg(format!("-j{}", num_cpus::get()));
 
         if self.shallow {
+            command.arg("--shallow-submodules");
             command.arg("--depth");
             command.arg("1");
         }
