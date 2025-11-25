@@ -51,6 +51,10 @@ struct InitArgs {
     #[arg(short, long)]
     /// Optionally specify a branch
     pub branch: Option<String>,
+    #[cfg(target_os = "windows")]
+    #[arg(long, short)]
+    /// Clone Contiki-ng in Windows instead of WSL (much slower performance)
+    pub windows: bool,
 }
 
 #[derive(Args, Debug, Clone)]
