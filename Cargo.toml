@@ -7,13 +7,12 @@ termion = { version = "4.0" }
 
 [package]
 name = "contiker"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2024"
 
 [dependencies]
 clap = { version = "4.5.51", features = ["derive"] }
 anyhow.workspace = true
-termion.workspace = true
 contiker-init = { path = "contiker-init" }
 
 [target.'cfg(target_os = "windows")'.dependencies]
@@ -21,3 +20,4 @@ contiker-wsl = { path = "./contiker-wsl" }
 
 [target.'cfg(target_os = "linux")'.dependencies]
 contiker-docker = { path = "./contiker-docker" }
+termion.workspace = true
