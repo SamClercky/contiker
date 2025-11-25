@@ -32,7 +32,7 @@ cargo install --git https://github.com/SamClercky/contiker.git --tag v0.2.0 --lo
 To allow X11 to work with Cooja on Linux and Docker, use the following command:
 ```bash
 xhost +local:docker # or
-contiker fix -xhost # To fix through contiker
+contiker fix xhost # To fix through contiker
 ```
 
 ## Run
