@@ -63,7 +63,7 @@ pub fn handle_init(args: InitArgs) -> anyhow::Result<()> {
     println!("Succesfully cloned repository");
     println!("To make this repository the default, put the following in your .bashrc:");
     println!();
-    println!("export CNG_PATH={:?}", git.volume());
+    println!("export CNG_PATH={}", git.volume().display());
     println!();
 
     Ok(())
