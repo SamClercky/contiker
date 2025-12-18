@@ -7,7 +7,7 @@ termion = { version = "4.0" }
 
 [package]
 name = "contiker"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2024"
 
 [dependencies]
