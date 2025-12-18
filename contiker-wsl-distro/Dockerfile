@@ -1,8 +1,10 @@
 FROM contiker/contiki-ng
 
-RUN DEBIAN_FRONTEND=noninteractive apt install -y \
-    dos2unix \
-    && rm -rf /var/lib/apt/lists/*
+RUN apt update && DEBIAN_FRONTEND=noninteractive apt install -y \
+  dos2unix \
+  wireshark \
+  firefox \
+  && rm -rf /var/lib/apt/lists/*
 
 COPY oobe.sh /etc/
 COPY ./wsl-distribution.conf /etc/
