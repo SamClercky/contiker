@@ -1,23 +1,17 @@
-use std::io::{Read, Write};
+use std::io::Write;
 use std::path::Path;
-use std::time::Duration;
+use std::process::Command;
 use std::{collections::HashMap, path::PathBuf};
 
 use anyhow::{Context, bail};
-use bollard::exec::StartExecOptions;
 use bollard::query_parameters::{ListImagesOptions, StartContainerOptions};
 use bollard::{
     Docker,
-    exec::StartExecResults,
     query_parameters::{CreateContainerOptions, ListContainersOptions, RemoveContainerOptions},
     secret::{
-        ContainerCreateBody, ContainerSummary, ContainerSummaryStateEnum, ExecConfig, HostConfig,
-        MountPoint,
+        ContainerCreateBody, ContainerSummary, ContainerSummaryStateEnum, HostConfig, MountPoint,
     },
 };
-use futures_util::StreamExt;
-use termion::raw::IntoRawMode;
-use tokio::io::AsyncWriteExt;
 use tokio::runtime::{self, Runtime};
 
 mod constants;
@@ -32,7 +26,6 @@ pub enum DockerCommand {
 pub struct DockerManager {
     client: Docker,
     volume_path: Option<PathBuf>,
-    term_size: Option<(u16, u16)>,
     rt: Runtime,
 }
 
@@ -41,7 +34,6 @@ impl DockerManager {
         Ok(Self {
             client: Docker::connect_with_local_defaults().context("while connecting to Docker")?,
             volume_path,
-            term_size: termion::terminal_size().ok(),
             rt: runtime::Builder::new_current_thread()
                 .enable_all()
                 .build()?,
@@ -147,7 +139,6 @@ impl DockerManager {
         }
 
         if needs_pulling {
-            // TODO: Refactor this to also use the API and not the CLI
             println!("Pulling image from Docker Hub");
             let command_status = std::process::Command::new("docker")
                 .arg("pull")
@@ -285,72 +276,29 @@ impl DockerManager {
         // Make sure container is up, and get the information
         let _ = self.ensure_contiker_up(user).await?;
 
-        // Start command in container
-        let response = self
-            .client
-            .create_exec(
-                constants::CONTIKER_CONTAINER,
-                ExecConfig {
-                    attach_stdin: Some(true),
-                    attach_stdout: Some(true),
-                    attach_stderr: Some(true),
-                    console_size: self.term_size.map(|(w, h)| vec![w as usize, h as usize]),
-                    tty: Some(true),
-                    cmd: Some(if cmd.is_empty() {
-                        vec!["bash".to_string()]
-                    } else {
-                        cmd
-                    }),
-                    privileged: Some(true),
-                    user: Some(format!("{}:{}", user.uid, user.gid)),
-                    ..Default::default()
-                },
-            )
-            .await
-            .context("while preparing the shell command")?;
+        let mut command = Command::new("docker");
+        command
+            .arg("exec")
+            .arg("-it")
+            .arg("--user")
+            .arg(format!("{}:{}", user.uid, user.gid))
+            .arg("--privileged")
+            .arg(constants::CONTIKER_CONTAINER);
 
-        let StartExecResults::Attached {
-            mut output,
-            mut input,
-        } = self
-            .client
-            .start_exec(
-                &response.id,
-                Some(StartExecOptions {
-                    detach: false,
-                    tty: true,
-                    ..Default::default()
-                }),
-            )
-            .await
-            .context("while starting the shell command")?
-        else {
-            panic!(
-                "The resulting exec should always be attached as this is how it has been configured. This is a programming mistake"
-            );
+        if cmd.is_empty() {
+            command.arg("bash");
+        } else {
+            for c in &cmd {
+                command.arg(c);
+            }
         };
 
-        // Connect the command to std io
-        tokio::spawn(async move {
-            #[allow(clippy::unbuffered_bytes)]
-            let mut stdin = termion::async_stdin().bytes();
-            loop {
-                if let Some(Ok(byte)) = stdin.next() {
-                    input.write_all(&[byte]).await.ok();
-                } else {
-                    tokio::time::sleep(Duration::from_nanos(10)).await;
-                }
-            }
-        });
+        let command_status = command
+            .status()
+            .context("while executing a command in the container")?;
 
-        // Set `stdout` in raw mode so we can do `TTY` stuff
-        let stdout = std::io::stdout();
-        let mut stdout = stdout.lock().into_raw_mode()?;
-
-        // Pipe Docker attach output into `stdout`
-        while let Some(Ok(output)) = output.next().await {
-            stdout.write_all(output.into_bytes().as_ref())?;
-            stdout.flush()?;
+        if !command_status.success() {
+            bail!("Exec command did not finish succesfully");
         }
 
         Ok(())

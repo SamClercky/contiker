@@ -5,14 +5,6 @@ edition = "2024"
 
 [dependencies]
 bollard = "0.19"
-tokio = { version = "1.48", features = [
-  "rt",
-  "io-std",
-  "io-util",
-], default-features = false }
-tokio-stream = "0.1.17"
-tokio-util = { version = "0.7.17", features = ["io"] }
+tokio = { version = "1.48", features = ["rt"], default-features = false }
 anyhow.workspace = true
 rustix = { version = "1.1.2", features = ["process"] }
-futures-util = "0.3.31"
-termion.workspace = true
