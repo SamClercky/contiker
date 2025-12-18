@@ -24,7 +24,7 @@ New and improved contiker script to work with variable workspace directories and
 ## Install
 
 ```bash
-cargo install --git https://github.com/SamClercky/contiker.git --tag v0.2.0 --locked
+cargo install --git https://github.com/SamClercky/contiker.git --tag v0.3.0-pre --locked
 ```
 
 ### Additionally for Linux
