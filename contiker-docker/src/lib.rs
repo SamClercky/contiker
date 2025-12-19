@@ -1,9 +1,10 @@
+use std::ffi::OsString;
 use std::io::Write;
 use std::path::Path;
 use std::process::Command;
 use std::{collections::HashMap, path::PathBuf};
 
-use anyhow::{Context, bail};
+use anyhow::{Context, anyhow, bail};
 use bollard::query_parameters::{ListImagesOptions, StartContainerOptions};
 use bollard::{
     Docker,
@@ -13,6 +14,7 @@ use bollard::{
     },
 };
 use tokio::runtime::{self, Runtime};
+use users::{get_current_gid, get_current_uid, get_user_by_uid};
 
 mod constants;
 
@@ -31,6 +33,16 @@ pub struct DockerManager {
 
 impl DockerManager {
     pub fn new(volume_path: Option<PathBuf>) -> anyhow::Result<Self> {
+        match user_has_docker_access() {
+            Some(true) => {}
+            Some(false) => eprintln!(
+                "[WARN] I detected that you do not have sufficient rights to use docker. If you encounter any problems, please run `contiker fix docker-perm` and then reboot."
+            ),
+            _ => eprintln!(
+                "[WARN] I could not check if you have sufficient rights to use docker. If you encounter any problems, please run `contiker fix docker-perm` and then reboot."
+            ),
+        }
+
         Ok(Self {
             client: Docker::connect_with_local_defaults().context("while connecting to Docker")?,
             volume_path,
@@ -346,6 +358,17 @@ impl TryFrom<ContainerSummary> for ContainerInfo {
     }
 }
 
+fn user_has_docker_access() -> Option<bool> {
+    let current_user = get_current_uid();
+    let current_user = get_user_by_uid(current_user)?;
+    Some(
+        current_user
+            .groups()?
+            .into_iter()
+            .any(|group| group.name() == "docker"),
+    )
+}
+
 #[derive(Debug, Clone, Copy)]
 pub struct User {
     pub uid: u32,
@@ -362,13 +385,17 @@ impl User {
     }
 
     pub fn infer() -> Self {
-        let uid = rustix::process::getuid();
-        let gid = rustix::process::getgid();
+        let uid = get_current_uid();
+        let gid = get_current_gid();
 
-        Self {
-            uid: uid.as_raw(),
-            gid: gid.as_raw(),
-        }
+        Self { uid, gid }
+    }
+
+    pub fn name(&self) -> anyhow::Result<OsString> {
+        Ok(get_user_by_uid(self.uid)
+            .ok_or_else(|| anyhow!("While retrieving the current username"))?
+            .name()
+            .to_owned())
     }
 }
 

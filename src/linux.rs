@@ -131,10 +131,10 @@ impl Fixes {
         let command_status = Command::new("sudo")
             .arg("usermod")
             .arg("-aG")
-            .arg(format!("{}", User::infer().uid))
             .arg("docker")
+            .arg(User::infer().name()?)
             .status()
-            .context("while running the xhost command")?;
+            .context("while running the usermod command")?;
 
         if !command_status.success() {
             bail!("non-successful error code by xhost command");
